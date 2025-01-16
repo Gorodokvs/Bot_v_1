@@ -25,11 +25,12 @@ def editmesspayconf():
     conn = sqlite3.connect('orders_list.db')
     cursor = conn.cursor()
     cursor.execute('SELECT * FROM users WHERE PaymentConfirmed IS  1 AND EditMessPayConf IS NOT 1')
-    unknown_EditMessPayConf = cursor.fetchone()
-
+    unknown_EditMessPayConf = cursor.fetchall()
+    print(unknown_EditMessPayConf)
     if unknown_EditMessPayConf != None:
         for row in unknown_EditMessPayConf:
             print("начало цикла изменения сообщения")
+            print(row[4])
             if int(row[4]) == 1:
                 deliveryMethod = 'Самовывоз'
             elif int(row[4]) == 2:
@@ -57,7 +58,8 @@ def editmesspayconf():
                 f"Заказ:\n{row[12]}\n"
                 f"Комментарий: {row[11]}\n"
             )
-            bot.edit_message_text(row[18], row[19], formatted_message)
+            print(row[18])
+            bot.send_message(380781080,"оплачено")
             conn = sqlite3.connect("orders_list.db")
             cursor = conn.cursor()
             cursor.execute('UPDATE users SET EditMessPayConf = ? WHERE OrderNumber = ?', (1, row[1]))
