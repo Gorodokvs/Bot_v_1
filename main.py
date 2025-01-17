@@ -20,17 +20,76 @@ last_execution_time = 0
 bot = telebot.TeleBot('7647629268:AAE2HacxBvRl3etkfcIT8gzMz6XSZ3WXsVU')
 
 def editmesspayconf():
-    global deliveryMethod
-    global paymentMethod
-    conn = sqlite3.connect('orders_list.db')
-    cursor = conn.cursor()
-    cursor.execute('SELECT * FROM users WHERE PaymentConfirmed IS  1 AND EditMessPayConf IS NOT 1')
-    unknown_EditMessPayConf = cursor.fetchall()
-    print(unknown_EditMessPayConf)
-    if unknown_EditMessPayConf != None:
-        for row in unknown_EditMessPayConf:
-            print("начало цикла изменения сообщения")
-            print(row[4])
+    try:
+        global deliveryMethod
+        global paymentMethod
+        conn = sqlite3.connect('orders_list.db')
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM users WHERE PaymentConfirmed IS  1 AND EditMessPayConf IS NOT 1 AND CookingTime IS NOT NULL')
+        unknown_EditMessPayConf = cursor.fetchall()
+        print(unknown_EditMessPayConf)
+        if unknown_EditMessPayConf != None:
+            for row in unknown_EditMessPayConf:
+                print("начало цикла изменения сообщения")
+                print(row[4])
+                if int(row[4]) == 1:
+                    deliveryMethod = 'Самовывоз'
+                elif int(row[4]) == 2:
+                    deliveryMethod = 'Доставка курьером'
+
+                if int(row[5]) == 3:
+                    paymentMethod = 'Наличные'
+                elif int(row[5]) == 4:
+                    paymentMethod = 'Банковской картой'
+                elif int(row[5]) == 5:
+                    paymentMethod = 'Оплата через сайт'
+
+                # Формирование сообщения без названий полей
+                formatted_message = (
+                    f"Номер заказа: {row[1]}\n"
+                    f"Дата: {row[2]}\n"
+                    f"Сумма заказа: {row[3]}\n"
+                    f"Метод доставки: {deliveryMethod}\n"
+                    f"Метод оплаты: {paymentMethod}\n"
+                    f"ОПЛАЧЕНО\n"
+                    f"Имя: {row[6]}\n"
+                    f"Телефон: {row[7]}\n"
+                    f"Город: {row[9]}\n"
+                    f"Адрес доставки: {row[10]}\n"
+                    f"Заказ:\n{row[12]}\n"
+                    f"Комментарий: {row[11]}\n"
+                )
+                print(row[18])
+                OrderNumber = row[1]
+                OrderAmount = row[3]
+                messages_pay = f"<b>ОПЛАТА ПОДТВЕРЖДЕНА</b>\n" + formatted_message
+                bot.edit_message_text(chat_id=row[18], message_id=row[19], text=messages_pay, parse_mode='html')
+                conn = sqlite3.connect("orders_list.db")
+                cursor = conn.cursor()
+                cursor.execute('UPDATE users SET EditMessPayConf = ? WHERE OrderNumber = ?', (1, row[1]))
+                conn.commit()
+                print("Записано в изменения сообщения")
+                conn.close()
+        else:
+            print("сообщение не менялось")
+    except:
+        print('ошибка вывода подтверждения оплаты')
+
+def reqvestTime(message):
+    try:
+        global chat_id_salda
+        global chat_id_sibtrakt
+        global chat_id_kachkanar
+        global deliveryMethod
+        global paymentMethod
+        print("начало запроса времени")
+        conn = sqlite3.connect('orders_list.db')
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM users WHERE RequestTime IS NULL')
+        unknown_RequestTime = cursor.fetchall()
+
+        for row in unknown_RequestTime:
+            print("начало цикла отправки клавиатуры")
             if int(row[4]) == 1:
                 deliveryMethod = 'Самовывоз'
             elif int(row[4]) == 2:
@@ -50,7 +109,6 @@ def editmesspayconf():
                 f"Сумма заказа: {row[3]}\n"
                 f"Метод доставки: {deliveryMethod}\n"
                 f"Метод оплаты: {paymentMethod}\n"
-                f"ОПЛАЧЕНО\n"
                 f"Имя: {row[6]}\n"
                 f"Телефон: {row[7]}\n"
                 f"Город: {row[9]}\n"
@@ -58,140 +116,91 @@ def editmesspayconf():
                 f"Заказ:\n{row[12]}\n"
                 f"Комментарий: {row[11]}\n"
             )
-            print(row[18])
-            bot.send_message(380781080,"оплачено")
-            conn = sqlite3.connect("orders_list.db")
-            cursor = conn.cursor()
-            cursor.execute('UPDATE users SET EditMessPayConf = ? WHERE OrderNumber = ?', (1, row[1]))
+
+            otvet = types.InlineKeyboardMarkup(row_width=2)
+            button1 = types.InlineKeyboardButton("20минут", callback_data='20')
+            button2 = types.InlineKeyboardButton("30минут", callback_data='30')
+            button3 = types.InlineKeyboardButton("60минут", callback_data='60')
+            button4 = types.InlineKeyboardButton("90минут", callback_data='90')
+            otvet.add(button1, button2, button3, button4)
+
+            # Отправка сообщения с форматированным текстом
+            if int(row[8]) == 109:
+                bot.send_message(chat_id_salda, formatted_message, reply_markup=otvet)
+            elif int(row[8]) == 110:
+                bot.send_message(chat_id_sibtrakt, formatted_message, reply_markup=otvet)
+            elif int(row[8]) == 112:
+                bot.send_message(chat_id_kachkanar, formatted_message, reply_markup=otvet)
+            else:
+                # Если данных недостаточно, отправляем простое сообщение
+                bot.send_message(380781080, message.text)  # Отправка сообщения в указанный чат
+
+            cursor.execute('UPDATE users SET RequestTime = ? WHERE OrderNumber = ?', (1, row[1]))
             conn.commit()
-            print("Записано в изменения сообщения")
-            conn.close()
-    else:
-        print("сообщение не менялось")
 
-
-def reqvestTime(message):
-    global chat_id_salda
-    global chat_id_sibtrakt
-    global chat_id_kachkanar
-    global deliveryMethod
-    global paymentMethod
-    print("начало запроса времени")
-    conn = sqlite3.connect('orders_list.db')
-    cursor = conn.cursor()
-    cursor.execute('SELECT * FROM users WHERE RequestTime IS NULL')
-    unknown_RequestTime = cursor.fetchall()
-
-    for row in unknown_RequestTime:
-        print("начало цикла отправки клавиатуры")
-        if int(row[4]) == 1:
-            deliveryMethod = 'Самовывоз'
-        elif int(row[4]) == 2:
-            deliveryMethod = 'Доставка курьером'
-
-        if int(row[5]) == 3:
-            paymentMethod = 'Наличные'
-        elif int(row[5]) == 4:
-            paymentMethod = 'Банковской картой'
-        elif int(row[5]) == 5:
-            paymentMethod = 'Оплата через сайт'
-
-        # Формирование сообщения без названий полей
-        formatted_message = (
-            f"Номер заказа: {row[1]}\n"
-            f"Дата: {row[2]}\n"
-            f"Сумма заказа: {row[3]}\n"
-            f"Метод доставки: {deliveryMethod}\n"
-            f"Метод оплаты: {paymentMethod}\n"
-            f"Имя: {row[6]}\n"
-            f"Телефон: {row[7]}\n"
-            f"Город: {row[9]}\n"
-            f"Адрес доставки: {row[10]}\n"
-            f"Заказ:\n{row[12]}\n"
-            f"Комментарий: {row[11]}\n"
-        )
-
-        otvet = types.InlineKeyboardMarkup(row_width=2)
-        button1 = types.InlineKeyboardButton("20минут", callback_data='20')
-        button2 = types.InlineKeyboardButton("30минут", callback_data='30')
-        button3 = types.InlineKeyboardButton("60минут", callback_data='60')
-        button4 = types.InlineKeyboardButton("90минут", callback_data='90')
-        otvet.add(button1, button2, button3, button4)
-
-        # Отправка сообщения с форматированным текстом
-        if int(row[8]) == 109:
-            bot.send_message(chat_id_salda, formatted_message, reply_markup=otvet)
-        elif int(row[8]) == 110:
-            bot.send_message(chat_id_sibtrakt, formatted_message, reply_markup=otvet)
-        elif int(row[8]) == 112:
-            bot.send_message(chat_id_kachkanar, formatted_message, reply_markup=otvet)
-        else:
-            # Если данных недостаточно, отправляем простое сообщение
-            bot.send_message(380781080, message.text)  # Отправка сообщения в указанный чат
-
-        cursor.execute('UPDATE users SET RequestTime = ? WHERE OrderNumber = ?', (1, row[1]))
         conn.commit()
-
-    conn.commit()
-    conn.close()
-    print("конец запроса времени готовки")
-
+        conn.close()
+        print("конец запроса времени готовки")
+    except:
+        print('ошибка запроса времени готовки')
 # Запрос почты
 def checkemail():
-    print("Начало запроса почты")
-    # создаю соединение
-    imap = imaplib.IMAP4_SSL('imap.yandex.ru')
+    try:
+        print("Начало запроса почты")
+        # создаю соединение
+        imap = imaplib.IMAP4_SSL('imap.yandex.ru')
 
-    # логинюсь
-    imap.login('botmyasnoi', 'axasvfykumndzzys')
+        # логинюсь
+        imap.login('botmyasnoi', 'axasvfykumndzzys')
 
-    # выбираем папку входящие
-    imap.select('INBOX')
+        # выбираем папку входящие
+        imap.select('INBOX')
 
-    # ищем все письма с кодировкой ...
-    typ, data = imap.search(None, 'UNSEEN')
+        # ищем все письма с кодировкой ...
+        typ, data = imap.search(None, 'UNSEEN')
 
-    # перевод в список
-    data = data[0].split()
+        # перевод в список
+        data = data[0].split()
 
-    for i in data:
-        status, data = imap.fetch(i, '(RFC822)')
-        data = data[0][1]
-        enc = chardet.detect(data)
-        # print("\n\n\nКодировка: ", enc)
+        for i in data:
+            status, data = imap.fetch(i, '(RFC822)')
+            data = data[0][1]
+            enc = chardet.detect(data)
+            # print("\n\n\nКодировка: ", enc)
 
-        msg = email.message_from_bytes(data)
-        encoded_subject = msg['Subject']
-        subject = email.header.decode_header(encoded_subject)
+            msg = email.message_from_bytes(data)
+            encoded_subject = msg['Subject']
+            subject = email.header.decode_header(encoded_subject)
 
-        decoded_parts = []
-        for part, encoding in subject:
-            if isinstance(part, bytes):
-                if encoding is not None:
-                    decoded_parts.append(part.decode(encoding))
+            decoded_parts = []
+            for part, encoding in subject:
+                if isinstance(part, bytes):
+                    if encoding is not None:
+                        decoded_parts.append(part.decode(encoding))
+                    else:
+                        decoded_parts.append(part.decode('utf-8'))
                 else:
-                    decoded_parts.append(part.decode('utf-8'))
-            else:
-                decoded_parts.append(part)
+                    decoded_parts.append(part)
 
-        # Объединяем декодированные части
-        final_subject = ''.join(decoded_parts)
-        ordpay = final_subject.find("оплачен")
+            # Объединяем декодированные части
+            final_subject = ''.join(decoded_parts)
+            ordpay = final_subject.find("оплачен")
 
-        if ordpay == 20:
-            print("Получено подтверждение оплаты заказа")
-            numord = final_subject.find("#")
-            numord = final_subject[numord:][1:9]
-            conn = sqlite3.connect("orders_list.db")
-            cursor = conn.cursor()
-            cursor.execute('UPDATE users SET PaymentConfirmed = ? WHERE OrderNumber = ?', (1, numord))
-            conn.commit()
-            print("Записано в бд подтверждение заказа")
-            conn.close()
+            if ordpay == 20:
+                print("Получено подтверждение оплаты заказа")
+                numord = final_subject.find("#")
+                numord = final_subject[numord:][1:9]
+                conn = sqlite3.connect("orders_list.db")
+                cursor = conn.cursor()
+                cursor.execute('UPDATE users SET PaymentConfirmed = ? WHERE OrderNumber = ?', (1, numord))
+                conn.commit()
+                print("Записано в бд подтверждение заказа")
+                conn.close()
 
-    imap.close()
-    print("Завершение запроса почты")
-
+        imap.close()
+        print("Завершение запроса почты")
+    except:
+        print('ошибка принятия почты')
 def create_db(message):
     print("Начало создания БД")
     conn = sqlite3.connect("orders_list.db")
@@ -226,35 +235,37 @@ def create_db(message):
     print("Создана БД")
 
 def sendsms():
-    print("начало отправки сообщения")
-    global last_execution_time
-    current_time = time.time()
-    conn = sqlite3.connect('orders_list.db')
-    cursor = conn.cursor()
-    cursor.execute('SELECT * FROM users WHERE CookingTime IS NOT NULL AND SendSMSclient IS NOT 1')
-    row = cursor.fetchone()
-    if row != None and current_time - last_execution_time >= 30:
-        clietphone = row[7]
-        coocingtime = row[17]
-        ordnam = row[1]
-
-        print("попытка отправки сообщения")
-        clietphone = clietphone.replace("(", "").replace(")", "").replace("+", "").replace("-", "").strip()
-        clietphone = clietphone[1:]
-        conn = sqlite3.connect("orders_list.db")
+    try:
+        print("начало отправки сообщения")
+        global last_execution_time
+        current_time = time.time()
+        conn = sqlite3.connect('orders_list.db')
         cursor = conn.cursor()
-        cursor.execute('UPDATE users SET SendSMSclient = ? WHERE OrderNumber = ?', (1, ordnam))
-        conn.commit()
-        conn.close()
-        last_execution_time = current_time
-        messSMS = "Ваш заказ будет готов через " + coocingtime + " минут"
-        #responsgoip = requests.get('http://192.168.1.102/default/en_US/send.html?u=admin&p=admin&l=2&n=8'+clietphone+'&m='+messSMS)
-        print("сообщение отправлено")
-        print(clietphone)
-        print(messSMS)
-    else:
-        print("не кому отправлять сообщения")
+        cursor.execute('SELECT * FROM users WHERE CookingTime IS NOT NULL AND SendSMSclient IS NOT 1')
+        row = cursor.fetchone()
+        if row != None and current_time - last_execution_time >= 30:
+            clietphone = row[7]
+            coocingtime = row[17]
+            ordnam = row[1]
 
+            print("попытка отправки сообщения")
+            clietphone = clietphone.replace("(", "").replace(")", "").replace("+", "").replace("-", "").strip()
+            clietphone = clietphone[1:]
+            conn = sqlite3.connect("orders_list.db")
+            cursor = conn.cursor()
+            cursor.execute('UPDATE users SET SendSMSclient = ? WHERE OrderNumber = ?', (1, ordnam))
+            conn.commit()
+            conn.close()
+            last_execution_time = current_time
+            messSMS = "Ваш заказ будет готов через " + coocingtime + " минут"
+            responsgoip = requests.get('http://192.168.1.102/default/en_US/send.html?u=admin&p=admin&l=1&n=89995670696&m='+messSMS)
+            print("сообщение отправлено")
+            print(clietphone)
+            print(messSMS)
+        else:
+            print("не кому отправлять сообщения")
+    except:
+        print('ошибка отправки смс')
 
 # Вывод в консоль и ответ пользователю ID
 @bot.message_handler(commands=['start'])
